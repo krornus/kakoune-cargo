@@ -45,19 +45,29 @@ add-highlighter shared/cargo/check regex "^\s+Checking" 0:yellow
 add-highlighter shared/cargo/lineno regex "^([0-9]+) (\|)" 1:cyan+b 2:default
 
 hook -group cargo-make global WinSetOption compiler=cargo.* %{
-    hook -group cargo-highlight global WinSetOption current_bufname=\*make\* %{
+    hook -group cargo-hooks global WinSetOption filetype=make %{
         # persist makecmd
         set-option window makecmd cargo
-        # not sure why this gets added so many times when going to make buffer
-        try %{ add-highlighter window/cargo ref cargo }
+        try %{ remove-highlighter window/cargo }
+        add-highlighter window/cargo ref cargo
     }
 
-    hook -group cargo-highlight global WinSetOption current_bufname=(?!\*make\*).* %{
+    hook buffer WinSetOption filetype=make %{
+        hook buffer -group cargo-hooks NormalKey <ret> cargo-jump
+    }
+
+    hook -group cargo-hooks global WinSetOption filetype=(?!make) %{
         remove-highlighter window/cargo
     }
 }
 
-hook global WinSetOption compiler=(?!cargo).* %{
-    remove-highlighter window/cargo
-    remove-hooks global cargo-highlight
+define-command -hidden cargo-jump %{
+    evaluate-commands -try-client %opt{jumpclient} -save-regs 123 %{
+        # select custom surrounding object
+        execute-keys "<a-a>c^(?:error\[E[0-9]+\])|(?:warning:),^$<ret>"
+        # select file desc
+        execute-keys "s(?S)--> (.+):([0-9]+):([0-9]+)<ret><a-;>;"
+        # open
+        edit -existing %reg{1} %reg{2} %reg{3}
+    }
 }

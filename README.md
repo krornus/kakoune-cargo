@@ -1,7 +1,7 @@
 # kakoune-cargo
 
 Cargo compiler support for kakoune
-Currently only supports syntax hightlighting
+Currently only supports syntax hightlighting, and pressing <ret> on an error/warning to jump
 
 # Install
 
@@ -17,4 +17,4 @@ hook -group make-rust global WinSetOption filetype=rust %[
 
 # Usage
 
-No commands are currently supported - just syntax highlighting
+Hover over an error or warning section and press <enter> to jump to the given file/line/column entry

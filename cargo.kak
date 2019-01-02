@@ -63,10 +63,14 @@ hook -group cargo-make global WinSetOption compiler=cargo.* %{
 
 define-command -hidden cargo-jump %{
     evaluate-commands -try-client %opt{jumpclient} -save-regs 123 %{
-        # select custom surrounding object
-        execute-keys "<a-a>c^(?:error\[E[0-9]+\])|(?:warning:),^$<ret>"
-        # select file desc
-        execute-keys "s(?S)--> (.+):([0-9]+):([0-9]+)<ret><a-;>;"
+        try %{
+            # select custom surrounding object
+            execute-keys "gl<a-a>c^(?:error\[E[0-9]+\])|(?:warning:),^$<ret>"
+            # select file desc
+            execute-keys "s(?S)--> (.+):([0-9]+):([0-9]+)<ret><a-;>;"
+        } catch %{
+            fail "no valid warning/error selected"
+        }
         # open
         edit -existing %reg{1} %reg{2} %reg{3}
     }

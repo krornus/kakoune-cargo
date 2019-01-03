@@ -1,4 +1,3 @@
-
 #######################
 # Syntax highlighting #
 #######################
@@ -15,8 +14,6 @@ add-highlighter shared/cargo-share/help/rust region "`" "`" ref rust
 add-highlighter shared/cargo-share/help/info default-region group
 add-highlighter shared/cargo-share/help/info/help regex "help" 0:default+b
 add-highlighter shared/cargo-share/attribute region "#\[" \] ref rust
-
-# regional highlights
 
 # error message
 add-highlighter shared/cargo/items/error region "^error\[E[0-9]+\]:" "^\n" group
@@ -48,11 +45,25 @@ add-highlighter shared/cargo/compile regex "^\s+Compiling" 0:green+b
 add-highlighter shared/cargo/check regex "^\s+Checking" 0:yellow
 add-highlighter shared/cargo/lineno regex "^([0-9]+) (\|)" 1:cyan+b 2:default
 
+###########
+# Options #
+###########
+declare-option str compiler
 
-#########
-# Hooks #
-#########
+#####################
+# Highlighter Hooks #
+#####################
 hook -group cargo-make global WinSetOption compiler=cargo.* %{
+    # if the filetype is already make, the hook will not run by default
+    evaluate-commands %sh{
+        if [ "${kak_opt_filetype}" = "make" ]; then
+            echo "
+                set-option window makecmd cargo
+                add-highlighter window/cargo ref cargo
+            "
+        fi
+    }
+
     hook -group cargo-hooks window WinSetOption filetype=make %{
         # persist makecmd
         set-option window makecmd cargo
@@ -64,22 +75,79 @@ hook -group cargo-make global WinSetOption compiler=cargo.* %{
     }
 }
 
-hook -group cargo-make global WinSetOption compiler=(?!cargo).* %{
+hook -group cargo-compiler global WinSetOption compiler=(?!cargo).* %{
+    remove-highlighter window/cargo
     remove-hooks window cargo-hooks
 }
 
-define-command -hidden -override make-jump %{
+############
+# Commands #
+############
+
+# Fail if the kakoune-mouvre plugin is not loaded
+try %{ nop %opt{mouvre_version} } catch %{ fail "requires kakoune-mourve" }
+
+define-command -hidden cargo-jump %{
     evaluate-commands -try-client %opt{jumpclient} -save-regs 123 %{
         try %{
             # select custom surrounding object
-            execute-keys "gl<a-a>c^(?:error\[E[0-9]+\])|(?:warning:),^$<ret>"
-            # select file desc
-            execute-keys "s(?S)--> (.+):([0-9]+):([0-9]+)<ret><a-;>;"
+            execute-keys \
+                "gl<a-a>c^(?:error\[E[0-9]+\])|(?:warning:),^$<ret>" \
+                "s(?S)--> (.+):([0-9]+):([0-9]+)<ret><a-;>;"
         } catch %{
             fail "no valid warning/error selected"
         }
+
+        set-option buffer make_current_error_line %val{cursor_line}
         # open
         edit -existing %reg{1} %reg{2} %reg{3}
     }
+}
+
+define-command -hidden cargo-next-error %{
+    evaluate-commands -try-client %opt{jumpclient} -save-regs a %{
+        execute-keys '"aZ'
+        try %{
+            buffer "*make*"
+            execute-keys "gk%opt{make_current_error_line}g"
+            try %{ execute-keys "<esc><a-a>c^(?:error\[E[0-9]+\])|(?:warning:),^$<ret><a-:>l" }
+            search-no-wrap "^(?:error\[E[0-9]+\])|(?:warning:)"
+            cargo-jump
+        } catch %{
+            execute-keys '"az'
+            fail "no items remaining"
+        }
+    }
+}
+
+define-command -hidden cargo-previous-error %{
+    evaluate-commands -try-client %opt{jumpclient} -save-regs a %{
+        execute-keys '"aZ'
+        try %{
+            buffer "*make*"
+            execute-keys "gk%opt{make_current_error_line}g"
+            try %{ execute-keys "<esc><a-a>c^(?:error\[E[0-9]+\])|(?:warning:),^$<ret><a-:><a-;>h" }
+            reverse-search-no-wrap "^(?:error\[E[0-9]+\])|(?:warning:)"
+            cargo-jump
+        } catch %{
+            execute-keys '"az'
+            fail "no items remaining"
+        }
+    }
+}
+
+#########
+# Hooks #
+#########
+
+# this overrides the standard make commands
+# if this is problematic, you should make a local make.kak file
+# in your autoload which just contains these three original
+# functions (renamed) along with a hook for compiler=make which
+# rewrites these functions back to the original state
+hook -group cargo-compiler global WinSetOption compiler=cargo.* %{
+    define-command -hidden -override make-jump cargo-jump
+    define-command -override make-next-error cargo-next-error
+    define-command -override make-previous-error cargo-previous-error
 }
 

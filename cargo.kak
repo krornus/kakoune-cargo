@@ -1,3 +1,7 @@
+
+#######################
+# Syntax highlighting #
+#######################
 add-highlighter shared/cargo group
 add-highlighter shared/cargo/items regions
 add-highlighter shared/cargo-share regions
@@ -44,24 +48,27 @@ add-highlighter shared/cargo/compile regex "^\s+Compiling" 0:green+b
 add-highlighter shared/cargo/check regex "^\s+Checking" 0:yellow
 add-highlighter shared/cargo/lineno regex "^([0-9]+) (\|)" 1:cyan+b 2:default
 
+
+#########
+# Hooks #
+#########
 hook -group cargo-make global WinSetOption compiler=cargo.* %{
-    hook -group cargo-hooks global WinSetOption filetype=make %{
+    hook -group cargo-hooks window WinSetOption filetype=make %{
         # persist makecmd
         set-option window makecmd cargo
-        try %{ remove-highlighter window/cargo }
         add-highlighter window/cargo ref cargo
     }
 
-    hook buffer WinSetOption filetype=make %{
-        hook buffer -group cargo-hooks NormalKey <ret> cargo-jump
-    }
-
-    hook -group cargo-hooks global WinSetOption filetype=(?!make) %{
+    hook -group cargo-hooks window WinSetOption filetype=(?!make).* %{
         remove-highlighter window/cargo
     }
 }
 
-define-command -hidden cargo-jump %{
+hook -group cargo-make global WinSetOption compiler=(?!cargo).* %{
+    remove-hooks window cargo-hooks
+}
+
+define-command -hidden -override make-jump %{
     evaluate-commands -try-client %opt{jumpclient} -save-regs 123 %{
         try %{
             # select custom surrounding object
@@ -75,3 +82,4 @@ define-command -hidden cargo-jump %{
         edit -existing %reg{1} %reg{2} %reg{3}
     }
 }
+

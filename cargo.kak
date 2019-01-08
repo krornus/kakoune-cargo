@@ -16,17 +16,17 @@ add-highlighter shared/cargo-share/help/info/help regex "help" 0:default+b
 add-highlighter shared/cargo-share/attribute region "#\[" \] ref rust
 
 # error message
-add-highlighter shared/cargo/items/error region "^error\[E[0-9]+\]:" "^\n" group
+add-highlighter shared/cargo/items/error region "^error" "^\n" group
 add-highlighter shared/cargo/items/error/context group
-add-highlighter shared/cargo/items/error/error regex "^(error)\[(E[0-9]+)\]" 1:red+b 2:cyan
+add-highlighter shared/cargo/items/error/error regex "^(error)(?:\[(E[0-9]+)\])?" 1:red+b 2:cyan
 add-highlighter shared/cargo/items/error/arrow regex "(?S)(-->) (.+):([0-9]+):([0-9]+)" 1:red 2:default+b 3:cyan 4:cyan
 add-highlighter shared/cargo/items/error/context/pointer regex "\s(-+|\^+)\s" 1:red+b
 add-highlighter shared/cargo/items/error/context/share ref cargo-share
 
 # warning message
-add-highlighter shared/cargo/items/warning region "^(warning):" "^\n" group
+add-highlighter shared/cargo/items/warning region "^(warning)" "^\n" group
 add-highlighter shared/cargo/items/warning/context group
-add-highlighter shared/cargo/items/warning/warning regex "^(warning)\[(E[0-9]+)\]" 1:yellow+b 2:cyan
+add-highlighter shared/cargo/items/warning/warning regex "^(warning)(?:\[(E[0-9]+)\])?" 1:yellow+b 2:cyan
 add-highlighter shared/cargo/items/warning/arrow regex "(?S)(-->) (.+):([0-9]+):([0-9]+)" 1:yellow 2:default+b 3:cyan 4:cyan
 add-highlighter shared/cargo/items/warning/context/pointer regex "\s(-+|\^+)\s" 1:yellow+b
 add-highlighter shared/cargo/items/warning/context/share ref cargo-share
@@ -88,49 +88,57 @@ hook -group cargo-compiler global WinSetOption compiler=(?!cargo).* %{
 try %{ nop %opt{mouvre_version} } catch %{ fail "requires kakoune-mourve" }
 
 define-command -hidden cargo-jump %{
-    evaluate-commands -try-client %opt{jumpclient} -save-regs 123 %{
+    evaluate-commands -try-client %opt{toolsclient} -save-regs 123 %{
         try %{
             # select custom surrounding object
             execute-keys \
-                "gl<a-a>c^(?:error(?:\[E[0-9]+\])?)|(?:warning:),^$<ret>" \
+                "gl<a-a>c^(?:error)|(?:warning),^$<ret>" \
                 "s(?S)--> (.+):([0-9]+):([0-9]+)<ret><a-;>;"
         } catch %{
             fail "no valid warning/error selected"
         }
 
         set-option buffer make_current_error_line %val{cursor_line}
-        # open
-        edit -existing %reg{1} %reg{2} %reg{3}
+        # try-client discards the capture registers
+        # make the command with shell first
+        evaluate-commands %sh{
+            echo "
+            evaluate-commands -try-client ${kak_opt_jumpclient} %{
+                echo -debug edit ${kak_reg_1} ${kak_reg_2} ${kak_reg_3}
+                edit ${kak_reg_1} ${kak_reg_2} ${kak_reg_3}
+            }
+            "
+        }
     }
 }
 
 define-command -hidden cargo-next-error %{
-    evaluate-commands -try-client %opt{jumpclient} -save-regs a %{
+    evaluate-commands -try-client %opt{toolsclient} -save-regs a %{
         execute-keys '"aZ'
         try %{
             buffer "*make*"
             execute-keys "gk%opt{make_current_error_line}g"
-            try %{ execute-keys "<esc><a-a>c^(?:error\[E[0-9]+\])|(?:warning:),^$<ret><a-:>l" }
-            search-no-wrap "^(?:error\[E[0-9]+\])|(?:warning:)"
+            try %{ execute-keys "<esc><a-a>c^(?:error)|(?:warning),^$<ret><a-:>l" }
+            search-no-wrap "^(?:error)|(?:warning)"
             cargo-jump
         } catch %{
-            execute-keys '"az'
+            execute-keys '"az<esc>'
             fail "no items remaining"
         }
     }
 }
 
 define-command -hidden cargo-previous-error %{
-    evaluate-commands -try-client %opt{jumpclient} -save-regs a %{
+    evaluate-commands -try-client %opt{toolsclient} -save-regs a %{
         execute-keys '"aZ'
         try %{
             buffer "*make*"
             execute-keys "gk%opt{make_current_error_line}g"
-            try %{ execute-keys "<esc><a-a>c^(?:error\[E[0-9]+\])|(?:warning:),^$<ret><a-:><a-;>h" }
-            reverse-search-no-wrap "^(?:error\[E[0-9]+\])|(?:warning:)"
+            try %{ execute-keys "<esc><a-a>c^(?:error)|(?:warning),^$<ret><a-:><a-;>h" }
+            reverse-search-no-wrap "^(?:error)|(?:warning)"
             cargo-jump
         } catch %{
-            execute-keys '"az'
+            execute-keys '"az<esc>'
             fail "no items remaining"
         }
     }

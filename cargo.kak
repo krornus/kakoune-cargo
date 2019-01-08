@@ -53,7 +53,7 @@ declare-option str compiler
 #####################
 # Highlighter Hooks #
 #####################
-hook -group cargo-make global WinSetOption compiler=cargo.* %{
+hook -group cargo-make global WinSetOption compiler=cargo %{
     # if the filetype is already make, the hook will not run by default
     evaluate-commands %sh{
         if [ "${kak_opt_filetype}" = "make" ]; then
@@ -66,7 +66,7 @@ hook -group cargo-make global WinSetOption compiler=cargo.* %{
 
     hook -group cargo-hooks window WinSetOption filetype=make %{
         # persist makecmd
-        set-option window makecmd cargo
+        set-option window compiler cargo
         add-highlighter window/cargo ref cargo
     }
 
@@ -92,7 +92,7 @@ define-command -hidden cargo-jump %{
         try %{
             # select custom surrounding object
             execute-keys \
-                "gl<a-a>c^(?:error\[E[0-9]+\])|(?:warning:),^$<ret>" \
+                "gl<a-a>c^(?:error(?:\[E[0-9]+\])?)|(?:warning:),^$<ret>" \
                 "s(?S)--> (.+):([0-9]+):([0-9]+)<ret><a-;>;"
         } catch %{
             fail "no valid warning/error selected"
@@ -145,7 +145,7 @@ define-command -hidden cargo-previous-error %{
 # in your autoload which just contains these three original
 # functions (renamed) along with a hook for compiler=make which
 # rewrites these functions back to the original state
-hook -group cargo-compiler global WinSetOption compiler=cargo.* %{
+hook -group cargo-compiler global WinSetOption compiler=cargo %{
     define-command -hidden -override make-jump cargo-jump
     define-command -override make-next-error cargo-next-error
     define-command -override make-previous-error cargo-previous-error

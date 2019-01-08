@@ -105,7 +105,11 @@ define-command -hidden cargo-jump %{
         # try-client discards the capture registers
         # make the command with shell first
         evaluate-commands %sh{
-            file=$(echo ${kak_opt_cargo_project_directory}/${kak_reg_1} | tr -d "'")
+            epath=$(echo ${kak_reg_1} | tr -d "'")
+            case "$epath" in
+                /*) file="$epath" ;;
+                *) file="${kak_opt_cargo_project_directory}/${epath}" ;;
+            esac
             echo "
             evaluate-commands -try-client %{${kak_opt_jumpclient}} %{
                 edit ${file} ${kak_reg_2} ${kak_reg_3}
@@ -116,7 +120,7 @@ define-command -hidden cargo-jump %{
 
 define-command -hidden cargo-error-directory %{
     evaluate-commands -save-regs s123456789 %{
-        execute-keys '"sZ<a-/>Checking.+\((.+)\)$<ret>'
+        execute-keys '"sZ<a-/>(?S)^\s+Checking.+\((.+)\)$<ret>'
         set-option window cargo_project_directory %reg{1}
         execute-keys '"sz<esc>'
     }

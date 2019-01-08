@@ -49,6 +49,7 @@ add-highlighter shared/cargo/lineno regex "^([0-9]+) (\|)" 1:cyan+b 2:default
 # Options #
 ###########
 declare-option str compiler
+declare-option str cargo_project_directory
 
 #####################
 # Highlighter Hooks #
@@ -66,7 +67,7 @@ hook -group cargo-make global WinSetOption compiler=cargo %{
 
     hook -group cargo-hooks window WinSetOption filetype=make %{
         # persist makecmd
-        set-option window compiler cargo
+        set-option window makecmd cargo
         add-highlighter window/cargo ref cargo
     }
 
@@ -85,10 +86,11 @@ hook -group cargo-compiler global WinSetOption compiler=(?!cargo).* %{
 ############
 
 # Fail if the kakoune-mouvre plugin is not loaded
+#   used for search-no-wrap functionality
 try %{ nop %opt{mouvre_version} } catch %{ fail "requires kakoune-mourve" }
 
 define-command -hidden cargo-jump %{
-    evaluate-commands -try-client %opt{toolsclient} -save-regs 123 %{
+    evaluate-commands -try-client %opt{toolsclient} -save-regs 123456789 %{
         try %{
             # select custom surrounding object
             execute-keys \
@@ -99,16 +101,24 @@ define-command -hidden cargo-jump %{
         }
 
         set-option buffer make_current_error_line %val{cursor_line}
+        cargo-error-directory
         # try-client discards the capture registers
         # make the command with shell first
         evaluate-commands %sh{
+            file=$(echo ${kak_opt_cargo_project_directory}/${kak_reg_1} | tr -d "'")
             echo "
-            evaluate-commands -try-client ${kak_opt_jumpclient} %{
-                echo -debug edit ${kak_reg_1} ${kak_reg_2} ${kak_reg_3}
-                edit ${kak_reg_1} ${kak_reg_2} ${kak_reg_3}
-            }
-            "
+            evaluate-commands -try-client %{${kak_opt_jumpclient}} %{
+                edit ${file} ${kak_reg_2} ${kak_reg_3}
+            }"
         }
+    }
+}
+
+define-command -hidden cargo-error-directory %{
+    evaluate-commands -save-regs s123456789 %{
+        execute-keys '"sZ<a-/>Checking.+\((.+)\)$<ret>'
+        set-option window cargo_project_directory %reg{1}
+        execute-keys '"sz<esc>'
     }
 }
 

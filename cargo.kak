@@ -94,7 +94,7 @@ define-command -hidden cargo-jump %{
         try %{
             # select custom surrounding object
             execute-keys \
-                "gl<a-a>c^(?:error)|(?:warning),^$<ret>" \
+                "gl<a-a>c^(?:error)|(?:warning),(?:note: required by)|(?:^$)<ret>" \
                 "s(?S)--> (.+):([0-9]+):([0-9]+)<ret><a-;>;"
         } catch %{
             fail "no valid warning/error selected"

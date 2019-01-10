@@ -120,7 +120,7 @@ define-command -hidden cargo-jump %{
 
 define-command -hidden cargo-error-directory %{
     evaluate-commands -save-regs s123456789 %{
-        execute-keys '"sZ<a-/>(?S)^\s+Checking.+\((.+)\)$<ret>'
+        execute-keys '"sZ<a-/>(?S)^\s+(?:Checking)|(?:Compiling).+\((.+)\)$<ret>'
         set-option window cargo_project_directory %reg{1}
         execute-keys '"sz<esc>'
     }

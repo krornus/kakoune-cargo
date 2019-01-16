@@ -94,7 +94,7 @@ define-command -hidden cargo-jump %{
         try %{
             # select custom surrounding object
             execute-keys \
-                "gl<a-a>c^(?:error)|(?:warning)|(?:note: required by),(?:note: required by)|(?:^$)<ret>" \
+                "gl<a-a>c(?:^error)|(?:^warning)|(?:^note:),(?:^note:)|(?:^$)<ret>" \
                 "s(?S)--> (.+):([0-9]+):([0-9]+)<ret><a-;>;"
         } catch %{
             fail "no valid warning/error selected"
@@ -108,7 +108,14 @@ define-command -hidden cargo-jump %{
             epath=$(echo ${kak_reg_1} | tr -d "'")
             case "$epath" in
                 /*) file="$epath" ;;
-                *) file="${kak_opt_cargo_project_directory}/${epath}" ;;
+                *)
+                    # in case of multi project projects, the path and dir dont align
+                    dir=${kak_opt_cargo_project_directory}
+                    file="${dir}/${epath}"
+                    while [ ! -e $file ]; do
+                        dir=$(dirname $dir)
+                        file="${dir}/${epath}"
+                    done ;;
             esac
             echo "
             evaluate-commands -try-client %{${kak_opt_jumpclient}} %{
